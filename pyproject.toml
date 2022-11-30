@@ -10,7 +10,7 @@ packages = [{include = "llmhtmlpdf"}]
 [tool.poetry.dependencies]
 python = "^3.8"
 llm = {'git' = "https://github.com/phfaist/llm.git", branch = "main"}
-weasyprint = "^57.1"
+pdfkit = "^1.0.0"
 
 
 [build-system]
