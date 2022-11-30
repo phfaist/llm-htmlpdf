@@ -106,7 +106,7 @@ python-frontmatter = "^1.0.0"
 type = "git"
 url = "https://github.com/phfaist/llm.git"
 reference = "main"
-resolved_reference = "a4fc998c5a35f06b8e83f279f9ca0bfeae5e495a"
+resolved_reference = "32bf11fa4e8088f9a25c7634d24a73592d04e385"
 
 [[package]]
 name = "pillow"
