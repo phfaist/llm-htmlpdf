@@ -105,6 +105,15 @@ class Workflow(RenderWorkflow):
 
     binary_output = True
 
+    pdfkit_options = {
+        'page-size': 'A4',
+        'margin-top': '1in',
+        'margin-right': '1in',
+        'margin-bottom': '1in',
+        'margin-left': '1in',
+        'encoding': "UTF-8",
+    }
+
     def get_fragment_renderer_class(self):
         return HtmlKlfMathFragmentRenderer
 
@@ -143,7 +152,8 @@ class Workflow(RenderWorkflow):
             pdffname = os.path.join(tempdirname, 'result.pdf')
 
             pdfkit.from_string(html, pdffname,
-                               verbose=logger.isEnabledFor(logging.DEBUG))
+                               options=self.pdfkit_options,
+                               verbose=logger.isEnabledFor(logging.DEBUG),)
 
             with open(pdffname, 'rb') as f:
                 result_pdf = f.read()
@@ -158,6 +168,13 @@ class Workflow(RenderWorkflow):
 
 _extra_css = r"""
 html, body {
+  font-size: 12pt;
   font-family: 'Roboto', sans-serif;
 }
+
+article {
+  max-width: 100%;
+  margin: 0px auto;
+}
+
 """
