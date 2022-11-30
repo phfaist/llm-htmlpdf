@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "llm-htmlpdf"
+version = "0.1.0"
+description = "Simple PDF output for LLM"
+authors = ["Philippe Faist"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "llmhtmlpdf"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+llm = {'git' = "https://github.com/phfaist/llm.git", branch = "main"}
+weasyprint = "^57.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
