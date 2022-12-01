@@ -169,7 +169,7 @@ class Workflow(RenderWorkflow):
 _extra_css = r"""
 html, body {
   font-size: 12pt;
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Source Serif Pro', 'Times New Roman', serif;
 }
 
 article {
