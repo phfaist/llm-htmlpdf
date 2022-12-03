@@ -1,6 +1,6 @@
 [[package]]
 name = "llm"
-version = "0.2.0alpha000010"
+version = "0.2.0alpha000011"
 description = "Latex-Like Markup"
 category = "main"
 optional = false
@@ -15,7 +15,7 @@ python-frontmatter = "^1.0.0"
 type = "git"
 url = "https://github.com/phfaist/llm.git"
 reference = "main"
-resolved_reference = "32bf11fa4e8088f9a25c7634d24a73592d04e385"
+resolved_reference = "2ab6d537ba807038fa89e656859ab63ef215941c"
 
 [[package]]
 name = "pdfkit"
@@ -38,7 +38,7 @@ develop = false
 type = "git"
 url = "https://github.com/phfaist/pylatexenc.git"
 reference = "devel"
-resolved_reference = "db946861bf905721ca5fb5897034a520af153503"
+resolved_reference = "0116d01b322dcfcf820026e31b5df85fbafbd1fc"
 
 [[package]]
 name = "python-frontmatter"
