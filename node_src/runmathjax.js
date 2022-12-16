@@ -1,7 +1,5 @@
-import fs from 'fs';
-//import yargs from 'yargs';
 
-//import * as mathjax from 'mathjax-full';
+
 const {mathjax} = require('mathjax-full/js/mathjax.js');
 const {TeX} = require('mathjax-full/js/input/tex.js');
 const {SVG} = require('mathjax-full/js/output/svg.js');
@@ -12,71 +10,8 @@ const {RegisterHTMLHandler} = require('mathjax-full/js/handlers/html.js');
 const {AllPackages} = require('mathjax-full/js/input/tex/AllPackages.js');
 
 
-let in_content = null;
-try {
-    in_content = fs.readFileSync(0).toString('utf-8')
-} catch (err) {
-    console.error("Cannot read input!");
-    throw err;
-}
-
-const indata = JSON.parse(in_content);
-
-// const argv = yargs
-//       .usage('Usage: runmathjax [options]  — Generate SVG for LaTeX formulas (JSON stdin)')
-//       .option('displaytype', {
-//           description: 'either "display" or "inline"',
-//           type: 'string',
-//           default: 'display'
-//       })
-//       .help()
-//       .argv;
-
-
-//console.log('indata = ', indata);
-
-async function run() {
-
-    //
-    // load MathJax
-    //
-    // const MathJax = await mathjax.init({
-    //     //
-    //     //  The MathJax configuration
-    //     //
-    //     loader: {
-    //         source: {},
-    //         load: [
-    //             'adaptors/liteDOM',
-    //             'tex-svg',
-    //         ]
-    //     },
-    //     tex: {
-    //         inlineMath: [ ['\\(', '\\)'] ],
-    //         displayMath: [ ['\\[', '\\]'] ],
-    //         processEnvironments: true,
-    //         processRefs: true,
-
-    //         // equation numbering on
-    //         tags: 'ams',
-
-    //         packages: {'[+]': ['base', 'autoload', 'ams', 'newcommand', 'braket',]},
-    //     },
-    //     // chtml: {
-    //     //     fontURL: argv.fontURL
-    //     // },
-    //     svg: {
-    //         fontCache: 'local',
-    //         localID: ((indata.id_offset != null) ? indata.id_offset : null),
-    //         titleID: ((indata.id_offset != null) ? indata.id_offset : 0),
-    //     },
-    //     startup: {
-    //         typeset: false
-    //     },
-    // });
-    // const adaptor = MathJax.startup.adaptor;
-    // const css_data = adaptor.textContent(MathJax.svgStylesheet()),
-
+async function runmathjax(indata)
+{
     //
     // Load MathJaX -- manual components loading
     //
@@ -125,11 +60,10 @@ async function run() {
         output_data.svg_list.push( result_svg );
     }
 
-    process.stdout.write( JSON.stringify(output_data) );
-}
+    return JSON.stringify(output_data);
+};
 
-try {
-    run()
-} catch (err) {
-    console.error('ERROR!', err);
-}
+
+module.exports = {
+    runmathjax,
+};

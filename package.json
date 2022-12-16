@@ -13,8 +13,18 @@
     "parcel": "^2.8.2"
   },
   "runmathjax": "llmhtmlpdf/runmathjax_dist.js",
+  "runmathjax_script": "llmhtmlpdf/runmathjax_script_dist.js",
   "targets": {
     "runmathjax": {
+      "isLibrary": false,
+      "includeNodeModules": true,
+      "context": "browser",
+      "outputFormat": "global",
+      "engines": {
+        "browsers": "Chrome 80"
+      }
+    },
+    "runmathjax_script": {
       "isLibrary": false,
       "includeNodeModules": true,
       "context": "node",
@@ -25,6 +35,7 @@
     }
   },
   "scripts": {
-    "build": "parcel build node_src/runmathjax.js"
+    "build": "parcel build node_src/runmathjax_browser.js --target=runmathjax",
+    "build_script": "parcel build node_src/runmathjax_script.js --target=runmathjax_script"
   }
 }

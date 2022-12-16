@@ -28,15 +28,19 @@ from llm.runmain import RenderWorkflow, HtmlMinimalDocumentPostprocessor
 #default_nodejs_opts = ['-r', 'esm']
 #default_runmathjaxjs = os.path.join(os.path.dirname(__file__), '..', 'node_src', 'runmathjax.js')
 
-default_nodejs_opts = []
-default_runmathjaxjs = os.path.join(os.path.dirname(__file__), 'runmathjax_dist.js')
+# default_nodejs_opts = []
+# default_runmathjaxjs = os.path.join(os.path.dirname(__file__), 'runmathjax_dist.js')
+
+
+with open(os.path.join(os.path.dirname(__file__), 'runmathjax_dist.js')) as f:
+    runmathjax_js_src = f.read()
 
 
 class HtmlMjxMathFragmentRenderer(HtmlFragmentRenderer):
 
-    nodejs = shutil.which('node')
-    nodejs_opts = default_nodejs_opts
-    runmathjaxjs = default_runmathjaxjs
+    # nodejs = shutil.which('node')
+    # nodejs_opts = default_nodejs_opts
+    # runmathjaxjs = default_runmathjaxjs
 
     mathjax_id_offset = 1
 
@@ -46,6 +50,13 @@ class HtmlMjxMathFragmentRenderer(HtmlFragmentRenderer):
     def get_html_body_end_js_scripts(self):
         return '' # no MathJax needed in HTML page
 
+
+    def __init__(self, config=None, selenium_driver=None):
+        super().__init__(config)
+        self.selenium_driver = selenium_driver
+        # install our runmathjax() function into this selenium driver's global
+        # JS namespace
+        self.selenium_driver.execute_script( runmathjax_js_src )
 
     def render_math_content(self,
                             delimiters,
@@ -77,18 +88,21 @@ class HtmlMjxMathFragmentRenderer(HtmlFragmentRenderer):
             'id_offset': self.mathjax_id_offset,
         }
 
-        if self.nodejs is None or not self.nodejs:
-            raise ValueError(
-                "Cannot find node, please place the 'node' executable in your $PATH "
-                "or set nodejs= to its full location path in the config as "
-                "llm: { 'fragmentrenderer': { 'llmhtmlpdf.Workflow': { 'nodejs': ... }}}"
-            )
-
-        result = subprocess.check_output(
-            [self.nodejs, *self.nodejs_opts, self.runmathjaxjs,],
-            input=json.dumps(indata),
-            encoding='utf-8',
+        result = self.selenium_driver.execute_script(
+            f"return window.runmathjax( {json.dumps(indata)} )"
         )
+
+        # if self.nodejs is None or not self.nodejs:
+        #     raise ValueError(
+        #         "Cannot find node, please place the 'node' executable in your $PATH "
+        #         "or set nodejs= to its full location path in the config as "
+        #         "llm: { 'fragmentrenderer': { 'llmhtmlpdf.Workflow': { 'nodejs': ... }}}"
+        #     )
+        # result = subprocess.check_output(
+        #     [self.nodejs, *self.nodejs_opts, self.runmathjaxjs,],
+        #     input=json.dumps(indata),
+        #     encoding='utf-8',
+        # )
 
         outdata = json.loads(result)
 
@@ -131,72 +145,86 @@ class HtmlMjxMathFragmentRenderer(HtmlFragmentRenderer):
 #
 # Thanks!
 #
-def selenium_convert_html_to_pdf(input_path):
+class SeleniumHtmlToPdfConverter:
+    def __init__(self):
+        super().__init__()
 
-    settings = {
-        "appState": {
-            "recentDestinations": [{
-                "id": "Save as PDF",
-                "origin": "local"
-            }],
-            "selectedDestinationId": "Save as PDF",
-            "version": 2
-        },
-        "images": 2,
-    }
+        if not logger.isEnabledFor(logging.DEBUG):
+            # silence some verbose messages sent on INFO level
+            logging.getLogger('WDM').setLevel(level=logging.WARNING)
 
-    prefs = {'printing.print_preview_sticky_settings': json.dumps(settings)}
+        settings = {
+            "appState": {
+                "recentDestinations": [{
+                    "id": "Save as PDF",
+                    "origin": "local"
+                }],
+                "selectedDestinationId": "Save as PDF",
+                "version": 2
+            },
+            "images": 2,
+        }
 
-    chrome_options = webdriver.ChromeOptions()
-    chrome_options.add_experimental_option('prefs', prefs)
+        prefs = {'printing.print_preview_sticky_settings': json.dumps(settings)}
 
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-gpu")
+        chrome_options = webdriver.ChromeOptions()
+        chrome_options.add_experimental_option('prefs', prefs)
 
-    chrome_options.add_argument('--enable-print-browser')
-    chrome_options.add_argument('--kiosk-printing')
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--disable-gpu")
 
-    driver = webdriver.Chrome(
-        ChromeDriverManager().install(),
-        options=chrome_options
-    )
+        chrome_options.add_argument('--enable-print-browser')
+        chrome_options.add_argument('--kiosk-printing')
 
-    driver.get(f"file://{input_path}")
+        self.driver = webdriver.Chrome(
+            ChromeDriverManager().install(),
+            options=chrome_options
+        )
 
-    # ## Waiting doesn't seem necessary, as we don't have dynamic JS in our
-    # ## automatically generated pages
-    #
-    # try:
-    #     timeout = 10 # max. 10 seconds
-    #     WebDriverWait(driver, timeout).until(
-    #         staleness_of(driver.find_element(by=By.TAG_NAME, value="html"))
-    #     )
-    # except TimeoutException:
-    #     pass
+    def __del__(self):
+        self.driver.quit()
 
-    #driver.execute_script('window.print();')
+    def html_to_pdf(self, input_path, wait_html_ready=False, wait_timeout=5):
 
-    final_print_options = {
-        "landscape": False,
-        "displayHeaderFooter": False,
-        "printBackground": True,
-        "preferCSSPageSize": True,
-    }
-    #final_print_options.update(print_options)
+        self.driver.get(f"file://{input_path}")
 
-    print_pdf_url = f"{driver.command_executor._url}/session/{driver.session_id}/chromium/send_command_and_get_result"
-    print_pdf_body = json.dumps({"cmd": "Page.printToPDF", "params": final_print_options})
-    print_pdf_response = driver.command_executor._request("POST", print_pdf_url, print_pdf_body)
-    if not print_pdf_response:
-        raise RuntimeError(print_pdf_response.get("value"))
+        if wait_html_ready:
+            ## Waiting doesn't seem necessary, as we don't have dynamic JS in our
+            ## automatically generated pages
 
-    result_data = print_pdf_response.get("value")
+            try:
+                WebDriverWait(self.driver, wait_timeout).until(
+                    staleness_of(self.driver.find_element(by=By.TAG_NAME, value="html"))
+                )
+            except TimeoutException:
+                pass
 
-    result_pdf = base64.b64decode(result_data['data'])
+        final_print_options = {
+            "landscape": False,
+            "displayHeaderFooter": False,
+            "printBackground": True,
+            "preferCSSPageSize": True,
+        }
+        #final_print_options.update(print_options)
 
-    driver.quit()
+        print_pdf_url = (
+            f"{self.driver.command_executor._url}/session/"
+            f"{self.driver.session_id}/chromium/send_command_and_get_result"
+        )
+        print_pdf_body = \
+            json.dumps({"cmd": "Page.printToPDF", "params": final_print_options})
+        print_pdf_response = \
+            self.driver.command_executor._request("POST", print_pdf_url, print_pdf_body)
+        if not print_pdf_response:
+            raise RuntimeError(print_pdf_response.get("value"))
 
-    return result_pdf
+        result_data = print_pdf_response.get("value")
+
+        result_pdf = base64.b64decode(result_data['data'])
+
+        return result_pdf
+
+
 
 
 default_page_options = {
@@ -227,8 +255,16 @@ class Workflow(RenderWorkflow):
 
     page_options = {}
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.selenium_converter = SeleniumHtmlToPdfConverter()
+
     def get_fragment_renderer_class(self):
-        return HtmlMjxMathFragmentRenderer
+        return (
+            lambda config=None, selfx=self: HtmlMjxMathFragmentRenderer(
+                config, selfx.selenium_converter.driver
+            )
+        )
 
     def postprocess_rendered_document(self, rendered_content, document, render_context):
 
@@ -300,7 +336,7 @@ class Workflow(RenderWorkflow):
             #pdffname = os.path.join(tempdirname, 'result.pdf')
             with open(htmlfname, 'w') as fw:
                 fw.write(html)
-            result_pdf = selenium_convert_html_to_pdf(
+            result_pdf = self.selenium_converter.html_to_pdf(
                 htmlfname,
             )
 
