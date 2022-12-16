@@ -132,18 +132,6 @@ optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
 [[package]]
-name = "pyhtml2pdf"
-version = "0.0.6"
-description = "Simple python wrapper to convert HTML to PDF with headless Chrome via selenium."
-category = "main"
-optional = false
-python-versions = ">=3.6"
-
-[package.dependencies]
-selenium = "*"
-webdriver-manager = "*"
-
-[[package]]
 name = "pylatexenc"
 version = "3.0alpha000011"
 description = "Simple LaTeX parser providing latex-to-unicode and unicode-to-latex conversion"
@@ -340,7 +328,7 @@ h11 = ">=0.9.0,<1"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "8786fe58a028b43df0e14310d0552b6ed152b03aed6b72cd83f45fff0a375300"
+content-hash = "2325c005eedb8f76c220a8ba4e068b89645df30af97db2b242b696ef9023409f"
 
 [metadata.files]
 async-generator = [
@@ -453,10 +441,6 @@ packaging = [
 pycparser = [
     {file = "pycparser-2.21-py2.py3-none-any.whl", hash = "sha256:8ee45429555515e1f6b185e78100aea234072576aa43ab53aefcae078162fca9"},
     {file = "pycparser-2.21.tar.gz", hash = "sha256:e644fdec12f7872f86c58ff790da456218b10f863970249516d60a5eaca77206"},
-]
-pyhtml2pdf = [
-    {file = "pyhtml2pdf-0.0.6-py3-none-any.whl", hash = "sha256:0e8b11324a5b154c56e5aa85f4efe09eabcff6d8e1dd8ef6de61119aaad67ee0"},
-    {file = "pyhtml2pdf-0.0.6.tar.gz", hash = "sha256:d8805fb0d2055ba4521181053d2874906781f4d367510ae33d6b7e09cfbe0089"},
 ]
 pylatexenc = []
 pysocks = [

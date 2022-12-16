@@ -6,11 +6,13 @@ authors = ["Philippe Faist"]
 license = "MIT"
 readme = "README.md"
 packages = [{include = "llmhtmlpdf"}]
+include = ["llmhtmlpdf/runmathjax.js"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
 llm = {'git' = "https://github.com/phfaist/llm.git", branch = "main"}
-pyhtml2pdf = "^0.0.6"
+selenium = "^4.7.2"
+webdriver-manager = "^3.8.5"
 
 
 [build-system]

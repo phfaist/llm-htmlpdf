@@ -8,5 +8,7 @@ dist
 node_modules
 
 
+playground/mytestdoc.pdf
+
 test.pdf
 test-intermediate.html

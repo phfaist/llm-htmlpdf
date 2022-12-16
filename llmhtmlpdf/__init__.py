@@ -2,6 +2,7 @@ import os.path
 import json
 import shutil
 import tempfile
+import base64
 import logging
 logger = logging.getLogger(__name__)
 
@@ -9,7 +10,16 @@ import subprocess
 
 #import weasyprint
 #import pdfkit
-import pyhtml2pdf
+#import pyhtml2pdf.converter
+
+from selenium import webdriver
+from webdriver_manager.chrome import ChromeDriverManager
+# from selenium.common.exceptions import TimeoutException
+# from selenium.webdriver.support.ui import WebDriverWait
+# from selenium.webdriver.support.expected_conditions import staleness_of
+# from selenium.webdriver.common.by import By
+
+
 
 from llm.fragmentrenderer.html import HtmlFragmentRenderer
 from llm.runmain import RenderWorkflow, HtmlMinimalDocumentPostprocessor
@@ -18,7 +28,7 @@ from llm.runmain import RenderWorkflow, HtmlMinimalDocumentPostprocessor
 class HtmlMjxMathFragmentRenderer(HtmlFragmentRenderer):
 
     nodejs = shutil.which('node')
-    runmathjaxjs = os.path.join(os.path.dirname(__file__), '..', 'runmathjax.js')
+    runmathjaxjs = os.path.join(os.path.dirname(__file__), 'runmathjax.js')
 
     mathjax_id_offset = 1
 
@@ -107,6 +117,90 @@ class HtmlMjxMathFragmentRenderer(HtmlFragmentRenderer):
 
 
 
+#
+# inspired by
+# https://github.com/kumaF/pyhtml2pdf/blob/master/pyhtml2pdf/converter.py .
+#
+# Thanks!
+#
+def selenium_convert_html_to_pdf(input_path):
+
+    settings = {
+        "appState": {
+            "recentDestinations": [{
+                "id": "Save as PDF",
+                "origin": "local"
+            }],
+            "selectedDestinationId": "Save as PDF",
+            "version": 2
+        },
+        "images": 2,
+    }
+
+    prefs = {'printing.print_preview_sticky_settings': json.dumps(settings)}
+
+    chrome_options = webdriver.ChromeOptions()
+    chrome_options.add_experimental_option('prefs', prefs)
+
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--disable-gpu")
+
+    chrome_options.add_argument('--enable-print-browser')
+    chrome_options.add_argument('--kiosk-printing')
+
+    driver = webdriver.Chrome(
+        ChromeDriverManager().install(),
+        options=chrome_options
+    )
+
+    driver.get(f"file://{input_path}")
+
+    # ## Waiting doesn't seem necessary, as we don't have dynamic JS in our
+    # ## automatically generated pages
+    #
+    # try:
+    #     timeout = 10 # max. 10 seconds
+    #     WebDriverWait(driver, timeout).until(
+    #         staleness_of(driver.find_element(by=By.TAG_NAME, value="html"))
+    #     )
+    # except TimeoutException:
+    #     pass
+
+
+    #driver.execute_script('window.print();')
+
+    final_print_options = {
+        "landscape": False,
+        "displayHeaderFooter": False,
+        "printBackground": True,
+        "preferCSSPageSize": True,
+    }
+    #final_print_options.update(print_options)
+
+    print_pdf_url = f"{driver.command_executor._url}/session/{driver.session_id}/chromium/send_command_and_get_result"
+    print_pdf_body = json.dumps({"cmd": "Page.printToPDF", "params": final_print_options})
+    print_pdf_response = driver.command_executor._request("POST", print_pdf_url, print_pdf_body)
+    if not print_pdf_response:
+        raise RuntimeError(print_pdf_response.get("value"))
+
+    result_data = print_pdf_response.get("value")
+
+    result_pdf = base64.b64decode(result_data['data'])
+
+    driver.quit()
+
+    return result_pdf
+
+
+default_page_options = {
+    'size': 'A4',
+    'margin': {
+        'top': '1in',
+        'right': '1in',
+        'bottom': '1in',
+        'left': '1in'
+    }
+}
 
 
 class Workflow(RenderWorkflow):
@@ -122,16 +216,7 @@ class Workflow(RenderWorkflow):
     #     'encoding': "UTF-8",
     # }
 
-    pyhtml2pdf_convert_options = {
-        'print_options': {
-            'marginTop': 1.0, # inches
-            'marginRight': 1.0,
-            'marginBottom': 1.0,
-            'marginLeft': 1.0,
-            'paperHeight': 11.693, # inches, A4
-            'paperWidth': 8.268, # inches, A4
-        },
-    }
+    page_options = {}
 
     def get_fragment_renderer_class(self):
         return HtmlMjxMathFragmentRenderer
@@ -140,10 +225,29 @@ class Workflow(RenderWorkflow):
 
         # minimal HTML document & style -- TODO
 
-        # # make weasyprint a little quieter
-        # logging.getLogger('fontTools').setLevel(logging.WARNING)
+        page_options = dict(default_page_options)
+        page_options.update(self.page_options)
 
-        xtra_css = _extra_css
+        logger.debug("Using page_options = %r", page_options)
+
+        def mk_page_css():
+            s = "@page { "
+            s += f"size: {page_options['size']}; "
+            margin_opts = page_options['margin']
+            if isinstance(margin_opts, str):
+                s += f"margin: {margin_opts}; "
+            else:
+                for margin_which, margin_value in margin_opts.items():
+                    s += f"margin-{margin_which}: {margin_value}; "
+            s += "}\n"
+            logger.debug("page CSS is -> %s", s)
+            return s
+
+        xtra_css = ""
+
+        xtra_css += mk_page_css()
+
+        xtra_css += _extra_css
 
         if hasattr(render_context, '_mathjax_css'):
             xtra_css += '\n' + render_context._mathjax_css
@@ -178,18 +282,14 @@ class Workflow(RenderWorkflow):
 
         with tempfile.TemporaryDirectory() as tempdirname:
             htmlfname = os.path.join(tempdirname, 'inpage.html')
-            pdffname = os.path.join(tempdirname, 'result.pdf')
+            #pdffname = os.path.join(tempdirname, 'result.pdf')
             with open(htmlfname, 'w') as fw:
                 fw.write(html)
-            pyhtml2pdf.converter.convert(
-                htmlfname, pdffname,
-                **self.pyhtml2pdf_convert_options,
+            result_pdf = selenium_convert_html_to_pdf(
+                htmlfname,
             )
-            with open(pdffname, 'rb') as f:
-                result_pdf = f.read()
 
         # --------
-
 
         return result_pdf
             
