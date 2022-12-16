@@ -25,13 +25,17 @@ from llm.fragmentrenderer.html import HtmlFragmentRenderer
 from llm.runmain import RenderWorkflow, HtmlMinimalDocumentPostprocessor
 
 
+#default_nodejs_opts = ['-r', 'esm']
 #default_runmathjaxjs = os.path.join(os.path.dirname(__file__), '..', 'node_src', 'runmathjax.js')
+
+default_nodejs_opts = []
 default_runmathjaxjs = os.path.join(os.path.dirname(__file__), 'runmathjax_dist.js')
 
 
 class HtmlMjxMathFragmentRenderer(HtmlFragmentRenderer):
 
     nodejs = shutil.which('node')
+    nodejs_opts = default_nodejs_opts
     runmathjaxjs = default_runmathjaxjs
 
     mathjax_id_offset = 1
@@ -81,7 +85,7 @@ class HtmlMjxMathFragmentRenderer(HtmlFragmentRenderer):
             )
 
         result = subprocess.check_output(
-            [self.nodejs, '-r', 'esm', self.runmathjaxjs,],
+            [self.nodejs, *self.nodejs_opts, self.runmathjaxjs,],
             input=json.dumps(indata),
             encoding='utf-8',
         )
