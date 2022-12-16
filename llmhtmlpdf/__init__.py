@@ -8,13 +8,14 @@ logger = logging.getLogger(__name__)
 import subprocess
 
 #import weasyprint
-import pdfkit
+#import pdfkit
+import pyhtml2pdf
 
 from llm.fragmentrenderer.html import HtmlFragmentRenderer
 from llm.runmain import RenderWorkflow, HtmlMinimalDocumentPostprocessor
 
 
-class HtmlKlfMathFragmentRenderer(HtmlFragmentRenderer):
+class HtmlMjxMathFragmentRenderer(HtmlFragmentRenderer):
 
     nodejs = shutil.which('node')
     runmathjaxjs = os.path.join(os.path.dirname(__file__), '..', 'runmathjax.js')
@@ -57,6 +58,13 @@ class HtmlKlfMathFragmentRenderer(HtmlFragmentRenderer):
             ],
             'id_offset': self.mathjax_id_offset,
         }
+
+        if self.nodejs is None or not self.nodejs:
+            raise ValueError(
+                "Cannot find node, please place the 'node' executable in your $PATH "
+                "or set nodejs= to its full location path in the config as "
+                "llm: { 'fragmentrenderer': { 'llmhtmlpdf.Workflow': { 'nodejs': ... }}}"
+            )
 
         result = subprocess.check_output(
             [self.nodejs, '-r', 'esm', self.runmathjaxjs,],
@@ -105,17 +113,28 @@ class Workflow(RenderWorkflow):
 
     binary_output = True
 
-    pdfkit_options = {
-        'page-size': 'A4',
-        'margin-top': '1in',
-        'margin-right': '1in',
-        'margin-bottom': '1in',
-        'margin-left': '1in',
-        'encoding': "UTF-8",
+    # pdfkit_options = {
+    #     'page-size': 'A4',
+    #     'margin-top': '1in',
+    #     'margin-right': '1in',
+    #     'margin-bottom': '1in',
+    #     'margin-left': '1in',
+    #     'encoding': "UTF-8",
+    # }
+
+    pyhtml2pdf_convert_options = {
+        'print_options': {
+            'marginTop': 1.0, # inches
+            'marginRight': 1.0,
+            'marginBottom': 1.0,
+            'marginLeft': 1.0,
+            'paperHeight': 11.693, # inches, A4
+            'paperWidth': 8.268, # inches, A4
+        },
     }
 
     def get_fragment_renderer_class(self):
-        return HtmlKlfMathFragmentRenderer
+        return HtmlMjxMathFragmentRenderer
 
     def postprocess_rendered_document(self, rendered_content, document, render_context):
 
@@ -147,14 +166,25 @@ class Workflow(RenderWorkflow):
 
         # ----
 
+        # with tempfile.TemporaryDirectory() as tempdirname:
+        #     pdffname = os.path.join(tempdirname, 'result.pdf')
+        #     pdfkit.from_string(html, pdffname,
+        #                        options=self.pdfkit_options,
+        #                        verbose=logger.isEnabledFor(logging.DEBUG),)
+        #     with open(pdffname, 'rb') as f:
+        #         result_pdf = f.read()
+
+        # ----
+
         with tempfile.TemporaryDirectory() as tempdirname:
-            
+            htmlfname = os.path.join(tempdirname, 'inpage.html')
             pdffname = os.path.join(tempdirname, 'result.pdf')
-
-            pdfkit.from_string(html, pdffname,
-                               options=self.pdfkit_options,
-                               verbose=logger.isEnabledFor(logging.DEBUG),)
-
+            with open(htmlfname, 'w') as fw:
+                fw.write(html)
+            pyhtml2pdf.converter.convert(
+                htmlfname, pdffname,
+                **self.pyhtml2pdf_convert_options,
+            )
             with open(pdffname, 'rb') as f:
                 result_pdf = f.read()
 
