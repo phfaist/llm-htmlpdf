@@ -102,7 +102,7 @@ python-frontmatter = "^1.0.0"
 type = "git"
 url = "https://github.com/phfaist/llm.git"
 reference = "main"
-resolved_reference = "d69a3e8eff5109e16ac694df0f676107f1ef3584"
+resolved_reference = "c7e913e21ba552c44af5f21e468f009d7a9c85c5"
 
 [[package]]
 name = "outcome"

@@ -25,10 +25,14 @@ from llm.fragmentrenderer.html import HtmlFragmentRenderer
 from llm.runmain import RenderWorkflow, HtmlMinimalDocumentPostprocessor
 
 
+#default_runmathjaxjs = os.path.join(os.path.dirname(__file__), '..', 'node_src', 'runmathjax.js')
+default_runmathjaxjs = os.path.join(os.path.dirname(__file__), 'runmathjax_dist.js')
+
+
 class HtmlMjxMathFragmentRenderer(HtmlFragmentRenderer):
 
     nodejs = shutil.which('node')
-    runmathjaxjs = os.path.join(os.path.dirname(__file__), 'runmathjax.js')
+    runmathjaxjs = default_runmathjaxjs
 
     mathjax_id_offset = 1
 
@@ -166,7 +170,6 @@ def selenium_convert_html_to_pdf(input_path):
     # except TimeoutException:
     #     pass
 
-
     #driver.execute_script('window.print();')
 
     final_print_options = {
@@ -216,6 +219,8 @@ class Workflow(RenderWorkflow):
     #     'encoding': "UTF-8",
     # }
 
+    render_header = True
+
     page_options = {}
 
     def get_fragment_renderer_class(self):
@@ -226,7 +231,8 @@ class Workflow(RenderWorkflow):
         # minimal HTML document & style -- TODO
 
         page_options = dict(default_page_options)
-        page_options.update(self.page_options)
+        if self.page_options:
+            page_options.update(self.page_options)
 
         logger.debug("Using page_options = %r", page_options)
 
@@ -252,10 +258,15 @@ class Workflow(RenderWorkflow):
         if hasattr(render_context, '_mathjax_css'):
             xtra_css += '\n' + render_context._mathjax_css
 
-        pp = HtmlMinimalDocumentPostprocessor(document, render_context)
-        html = pp.postprocess(rendered_content, {
+        html_postprocessor_config = {
             'html': { 'extra_css': xtra_css, },
-        })
+            **self.config
+        }
+
+        pp = HtmlMinimalDocumentPostprocessor(document, render_context,
+                                              html_postprocessor_config)
+
+        html = pp.postprocess(rendered_content)
 
         # with open('test-intermediate.html', 'w') as fw:
         #     fw.write(html)
@@ -297,14 +308,5 @@ class Workflow(RenderWorkflow):
 
 
 _extra_css = r"""
-html, body {
-  font-size: 12pt;
-  font-family: 'Source Serif Pro', 'Times New Roman', serif;
-}
-
-article {
-  max-width: 100%;
-  margin: 0px auto;
-}
-
+/* can add extra hard-coded CSS here */
 """

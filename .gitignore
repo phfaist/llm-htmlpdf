@@ -5,10 +5,22 @@ __pycache__
 dist
 
 
-/node_modules
-
+llmhtmlpdf/runmathjax_dist.js.map
 
 playground/mytestdoc.pdf
+playground/mytestdoc.html
 
 test.pdf
 test-intermediate.html
+
+
+node_modules
+node_modules_*
+.parcel-cache
+
+.yarn
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions

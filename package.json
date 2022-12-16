@@ -1,14 +1,30 @@
 {
   "name": "llm-htmlpdf",
   "version": "0.1.0",
-  "main": "index.js",
   "repository": "git@github.com:phfaist/llm-htmlpdf.git",
   "author": "Philippe Faist",
   "license": "MIT",
   "private": true,
   "dependencies": {
     "mathjax": "^3.2.2",
-    "mathjax-full": "^3.2.2",
-    "yargs": "^17.6.2"
+    "mathjax-full": "^3.2.2"
+  },
+  "devDependencies": {
+    "parcel": "^2.8.2"
+  },
+  "runmathjax": "llmhtmlpdf/runmathjax_dist.js",
+  "targets": {
+    "runmathjax": {
+      "isLibrary": false,
+      "includeNodeModules": true,
+      "context": "node",
+      "outputFormat": "commonjs",
+      "engines": {
+        "node": ">= 16"
+      }
+    }
+  },
+  "scripts": {
+    "build": "parcel build node_src/runmathjax.js"
   }
 }

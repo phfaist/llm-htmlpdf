@@ -6,7 +6,7 @@ authors = ["Philippe Faist"]
 license = "MIT"
 readme = "README.md"
 packages = [{include = "llmhtmlpdf"}]
-include = ["llmhtmlpdf/runmathjax.js", "llmhtmlpdf/node_modules"]
+include = ["llmhtmlpdf/runmathjax_dist.js"]
 
 [tool.poetry.dependencies]
 python = "^3.8"

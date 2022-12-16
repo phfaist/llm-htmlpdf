@@ -1,9 +1,20 @@
 ---
 title: 'A funny test of a LLM document'
-workflow:
-  'llmhtmlpdf.Workflow':
-    page_options:
-      size: letter
+author: 'Me! Me again!'
+date: 'Dec 16, 2022'
+llm:
+  workflow:
+    html:
+      style:
+        font_family: 'Roboto'
+        font_size: '10pt'
+    'llmhtmlpdf.Workflow':
+      page_options:
+        #size: A5
+        #margin: '0.25in'
+      style:
+        font_family: 'Roboto'
+        font_size: '8pt'
 ---
 Hello, world. \emph{Here I am.} What would you like
 to    see?
