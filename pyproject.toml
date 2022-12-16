@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "llm-htmlpdf"
-version = "0.1.1"
+version = "0.1.2"
 description = "Simple PDF output for LLM"
 authors = ["Philippe Faist"]
 license = "MIT"
