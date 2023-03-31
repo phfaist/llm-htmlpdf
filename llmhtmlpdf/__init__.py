@@ -6,6 +6,10 @@ import base64
 import logging
 logger = logging.getLogger(__name__)
 
+for logname in ('selenium.webdriver', 'urllib3'):
+    logging.getLogger(logname).setLevel(level=logging.INFO)
+
+
 import subprocess
 
 #import weasyprint
@@ -22,7 +26,10 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 
 from llm.fragmentrenderer.html import HtmlFragmentRenderer
-from llm.runmain import RenderWorkflow, HtmlMinimalDocumentPostprocessor
+from llm.fragmentrenderer import html as fragmentrenderer_html
+from llm.main.configmerger import ConfigMerger
+from llm.main.workflow import RenderWorkflow
+from llm.main.workflow.templatebasedworkflow import TemplateBasedRenderWorkflow
 
 
 #default_nodejs_opts = ['-r', 'esm']
@@ -44,19 +51,19 @@ class HtmlMjxMathFragmentRenderer(HtmlFragmentRenderer):
 
     mathjax_id_offset = 1
 
-    def get_html_js(self):
-        return '' # no MathJax needed in HTML page
-
-    def get_html_body_end_js_scripts(self):
-        return '' # no MathJax needed in HTML page
-
-
-    def __init__(self, config=None, selenium_driver=None):
-        super().__init__(config)
-        self.selenium_driver = selenium_driver
+    def document_render_start(self, render_context):
+        super().document_render_start(render_context)
+        self.selenium_driver = \
+            render_context.doc.metadata['_llm_workflow'].selenium_converter.driver
         # install our runmathjax() function into this selenium driver's global
         # JS namespace
         self.selenium_driver.execute_script( runmathjax_js_src )
+
+    def document_render_finish(self, render_context):
+        super().document_render_finish(render_context)
+        self.selenium_driver = None
+
+    # ---
 
     def render_math_content(self,
                             delimiters,
@@ -135,6 +142,23 @@ class HtmlMjxMathFragmentRenderer(HtmlFragmentRenderer):
             content_html,
             class_names=class_names,
             attrs=attrs
+        )
+
+
+class HtmlMjxMathFragmentRendererInformation:
+    FragmentRendererClass = HtmlMjxMathFragmentRenderer
+
+    format_name = 'html'
+
+    @staticmethod
+    def get_style_information(fr):
+        return dict(
+            fragmentrenderer_html.FragmentRendererInformation.get_style_information(fr),
+            **{
+                # don't need any MathJax scripts.
+                'js': '',
+                'body_end_js_scripts': ''
+            }
         )
 
 
@@ -238,7 +262,7 @@ default_page_options = {
 }
 
 
-class Workflow(RenderWorkflow):
+class HtmlPdfWorkflow(RenderWorkflow):
 
     binary_output = True
 
@@ -255,16 +279,32 @@ class Workflow(RenderWorkflow):
 
     page_options = {}
 
+    @staticmethod
+    def get_fragment_renderer_name(outputformat, llm_run_info, run_config):
+        if outputformat is not None and outputformat:
+            logger.warning(
+                f"Setting --format has no effect with the llmhtmlpdf workflow.  "
+                f"Ignoring value ‘{outputformat}’"
+            )
+        return 'llmhtmlpdf.HtmlMjxMathFragmentRendererInformation'
+
+    @staticmethod
+    def get_default_main_config(llm_run_info, run_config):
+        return {
+            'llm': {
+                'template': {
+                    'html': {
+                        'name': 'simple',
+                    },
+                },
+            },
+        }
+
+    # ---
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.selenium_converter = SeleniumHtmlToPdfConverter()
-
-    def get_fragment_renderer_class(self):
-        return (
-            lambda config=None, selfx=self: HtmlMjxMathFragmentRenderer(
-                config, selfx.selenium_converter.driver
-            )
-        )
 
     def postprocess_rendered_document(self, rendered_content, document, render_context):
 
@@ -298,32 +338,43 @@ class Workflow(RenderWorkflow):
         if hasattr(render_context, '_mathjax_css'):
             xtra_css += '\n' + render_context._mathjax_css
 
-        html_postprocessor_config = {
-            'html': { 'extra_css': xtra_css, },
-            **self.config
-        }
+        html_template_workflow_config = ConfigMerger().recursive_assign_defaults([
+            {
+                'use_fragment_renderer_name': 'html',
+                'style': {
+                    'extra_css': xtra_css,
+                },
+            },
+            self.config,
+        ])
 
-        pp = HtmlMinimalDocumentPostprocessor(document, render_context,
-                                              html_postprocessor_config)
+        html_template_workflow = TemplateBasedRenderWorkflow(
+            html_template_workflow_config,
+            self.llm_run_info, self.fragment_renderer_information, self.fragment_renderer,
+        )
 
-        html = pp.postprocess(rendered_content)
+        result_html = html_template_workflow.postprocess_rendered_document(
+            rendered_content, document, render_context,
+        )
 
         # with open('test-intermediate.html', 'w') as fw:
         #     fw.write(html)
 
-        logger.debug('Full HTML:\n\n%s\n\n', html)
+        # logger.debug('Full HTML:\n\n%s\n\n', result_html)
+
+        #raise StopHereForNow 
 
         # convert result to PDF
 
         # --------
 
-        #result_pdf = weasyprint.HTML(string=html).write_pdf()
+        #result_pdf = weasyprint.HTML(string=result_html).write_pdf()
 
         # ----
 
         # with tempfile.TemporaryDirectory() as tempdirname:
         #     pdffname = os.path.join(tempdirname, 'result.pdf')
-        #     pdfkit.from_string(html, pdffname,
+        #     pdfkit.from_string(result_html, pdffname,
         #                        options=self.pdfkit_options,
         #                        verbose=logger.isEnabledFor(logging.DEBUG),)
         #     with open(pdffname, 'rb') as f:
@@ -335,7 +386,7 @@ class Workflow(RenderWorkflow):
             htmlfname = os.path.join(tempdirname, 'inpage.html')
             #pdffname = os.path.join(tempdirname, 'result.pdf')
             with open(htmlfname, 'w') as fw:
-                fw.write(html)
+                fw.write(result_html)
             result_pdf = self.selenium_converter.html_to_pdf(
                 htmlfname,
             )
@@ -345,6 +396,10 @@ class Workflow(RenderWorkflow):
         return result_pdf
             
             
+
+
+RenderWorkflowClass = HtmlPdfWorkflow
+
 
 
 _extra_css = r"""
